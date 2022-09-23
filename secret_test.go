@@ -1,9 +1,6 @@
 package siwarest
 
 import (
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
 	"testing"
 	"time"
 
@@ -11,9 +8,6 @@ import (
 )
 
 func Test_secret_get(t *testing.T) {
-	privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	publicKey := &privateKey.PublicKey
-
 	secret := &secret{
 		keyID:      "key-id",
 		teamID:     "team-id",
