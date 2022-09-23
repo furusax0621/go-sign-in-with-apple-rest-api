@@ -78,13 +78,13 @@ func (c *Client) validResponse(res *http.Response) error {
 
 	buf, err := io.ReadAll(res.Body)
 	if err != nil {
-		return err
+		return fmt.Errorf("siwarest: failed to read response body: %w", err)
 	}
 
 	var ret ErrorResponse
 	if err := json.Unmarshal(buf, &ret); err != nil {
-		return fmt.Errorf("status_code: %d, failed to parse error response: %s", res.StatusCode, string(buf))
+		return fmt.Errorf("siwarest: status_code = %d, failed to parse error response, %s", res.StatusCode, string(buf))
 	}
 
-	return fmt.Errorf("status_code: %d, error code: %s", res.StatusCode, ret.Error)
+	return fmt.Errorf("siwarest: status_code = %d, error code = %s", res.StatusCode, ret.Error)
 }

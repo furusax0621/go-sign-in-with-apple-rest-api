@@ -60,13 +60,13 @@ func TestClient_validResponse(t *testing.T) {
 			name:    "bad request",
 			code:    http.StatusBadRequest,
 			body:    `{"error":"invalid_request"}`,
-			wantKey: "error code: invalid_request",
+			wantKey: "error code = invalid_request",
 		},
 		{
 			name:    "unknown error",
 			code:    http.StatusInternalServerError,
 			body:    `unknown error`,
-			wantKey: "failed to parse error response: unknown error",
+			wantKey: "failed to parse error response, unknown error",
 		},
 	}
 
