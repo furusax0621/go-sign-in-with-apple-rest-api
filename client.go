@@ -3,6 +3,7 @@ package siwarest
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"time"
@@ -80,9 +81,14 @@ func (c *Client) validResponse(res *http.Response) error {
 		return nil
 	}
 
+	buf, err := io.ReadAll(res.Body)
+	if err != nil {
+		return err
+	}
+
 	var ret ErrorResponse
-	if err := json.NewDecoder(res.Body).Decode(&ret); err != nil {
-		return fmt.Errorf("status_code: %d, failed to parse error response: %w", res.StatusCode, err)
+	if err := json.Unmarshal(buf, &ret); err != nil {
+		return fmt.Errorf("status_code: %d, failed to parse error response: %s", res.StatusCode, string(buf))
 	}
 
 	return fmt.Errorf("status_code: %d, error code: %s", res.StatusCode, ret.Error)
