@@ -23,8 +23,6 @@ type Client struct {
 type ClientConfig struct {
 	// Client is the HTTP client. The default is http.DefaultClient.
 	Client *http.Client
-	// BaseURL is an endpoint of REST API. The default is https://appleid.apple.com/
-	BaseURL *url.URL
 	// ClientID is an identifier (App ID or ClientID) for your app.
 	ClientID string
 	// KeyID is used to JWT claim. It is generated for the Sign in with Apple private key associated with your developer account.
@@ -47,10 +45,7 @@ func New(conf *ClientConfig) (*Client, error) {
 		hc = http.DefaultClient
 	}
 
-	baseURL := conf.BaseURL
-	if baseURL == nil {
-		baseURL, _ = url.Parse("https://appleid.apple.com/")
-	}
+	baseURL, _ := url.Parse("https://appleid.apple.com/")
 
 	return &Client{
 		hc:       hc,
