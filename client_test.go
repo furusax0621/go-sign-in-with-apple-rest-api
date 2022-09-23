@@ -12,6 +12,8 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/golang-jwt/jwt/v4"
 )
 
 var privateKey *ecdsa.PrivateKey
@@ -87,5 +89,43 @@ func TestClient_validResponse(t *testing.T) {
 				t.Errorf("invalid error message: %s, want keyword %s", msg, tc.wantKey)
 			}
 		})
+	}
+}
+
+func validateClientSecret(t *testing.T, c *Client, clientSecret string) {
+	t.Helper()
+
+	var claim jwt.RegisteredClaims
+	_, err := jwt.ParseWithClaims(clientSecret, &claim, func(tk *jwt.Token) (interface{}, error) {
+		// check method
+		if tk.Method != jwt.SigningMethodES256 {
+			t.Errorf("invalid sign method: want %v, got %v", jwt.SigningMethodES256, tk.Method)
+		}
+
+		// check alg header
+		gotAlg := tk.Header["alg"].(string)
+		if gotAlg != "ES256" {
+			t.Errorf("invalid alg: want %s, got %s", "ES256", gotAlg)
+		}
+
+		// check kid header
+		gotKid := tk.Header["kid"].(string)
+		if gotKid != c.secret.keyID {
+			t.Errorf("invalid kid: want %s, got %s", c.secret.keyID, gotKid)
+		}
+		return publicKey, nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if claim.Issuer != c.secret.teamID {
+		t.Errorf("invalid iss: want %s, got %s", c.secret.teamID, claim.Issuer)
+	}
+	if aud := claim.Audience[0]; aud != "https://appleid.apple.com" {
+		t.Errorf("invalid aud: want %s, got %s", "https://appleid.apple.com", aud)
+	}
+	if claim.Subject != c.clientID {
+		t.Errorf("invalid sub: want %s, got %s", c.clientID, claim.Subject)
 	}
 }
