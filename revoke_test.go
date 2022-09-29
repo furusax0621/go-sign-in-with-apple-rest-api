@@ -2,15 +2,18 @@ package siwarest
 
 import (
 	"context"
-	"encoding/json"
+	"errors"
+	"io"
 	"net/http"
-	"net/http/httptest"
-	"net/url"
+	"strings"
 	"testing"
 )
 
 func TestClient_RevokeTokens(t *testing.T) {
+	hc := &http.Client{}
+
 	conf := &ClientConfig{
+		Client:        hc,
 		ClientID:      "dummy-client",
 		KeyID:         "dummy-key",
 		TeamID:        "dummy-team",
@@ -23,13 +26,13 @@ func TestClient_RevokeTokens(t *testing.T) {
 	}
 
 	t.Run("revoke tokens using access token", func(t *testing.T) {
-		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mock := dummyRoundTripper(func(r *http.Request) (*http.Response, error) {
 			if r.Method != http.MethodPost {
 				t.Errorf("invalid http method: want %s, got %s", http.MethodPost, r.Method)
 			}
 
-			if r.URL.Path != "/auth/revoke" {
-				t.Errorf("invalid url path: want %s, got %s", "/auth/revoke", r.URL.Path)
+			if url := r.URL.String(); url != "https://appleid.apple.com/auth/revoke" {
+				t.Errorf("invalid url: want %s, got %s", "https://appleid.apple.com/auth/revoke", url)
 			}
 
 			clientID := r.FormValue("client_id")
@@ -48,13 +51,15 @@ func TestClient_RevokeTokens(t *testing.T) {
 			}
 
 			validateClientSecret(t, c, r.FormValue("client_secret"))
-			w.WriteHeader(http.StatusOK)
-		}))
-		defer ts.Close()
 
-		// override api endpoint
-		baseURL, _ := url.Parse(ts.URL)
-		c.baseURL = baseURL
+			resp := &http.Response{
+				Header:     make(http.Header),
+				StatusCode: http.StatusOK,
+			}
+
+			return resp, nil
+		})
+		hc.Transport = mock
 
 		input := &RevokeTokensInput{
 			AccessToken: "dummy-access-token",
@@ -65,13 +70,13 @@ func TestClient_RevokeTokens(t *testing.T) {
 	})
 
 	t.Run("revoke tokens using refresh token", func(t *testing.T) {
-		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mock := dummyRoundTripper(func(r *http.Request) (*http.Response, error) {
 			if r.Method != http.MethodPost {
 				t.Errorf("invalid http method: want %s, got %s", http.MethodPost, r.Method)
 			}
 
-			if r.URL.Path != "/auth/revoke" {
-				t.Errorf("invalid url path: want %s, got %s", "/auth/revoke", r.URL.Path)
+			if url := r.URL.String(); url != "https://appleid.apple.com/auth/revoke" {
+				t.Errorf("invalid url: want %s, got %s", "https://appleid.apple.com/auth/revoke", url)
 			}
 
 			clientID := r.FormValue("client_id")
@@ -90,13 +95,15 @@ func TestClient_RevokeTokens(t *testing.T) {
 			}
 
 			validateClientSecret(t, c, r.FormValue("client_secret"))
-			w.WriteHeader(http.StatusOK)
-		}))
-		defer ts.Close()
 
-		// override api endpoint
-		baseURL, _ := url.Parse(ts.URL)
-		c.baseURL = baseURL
+			resp := &http.Response{
+				Header:     make(http.Header),
+				StatusCode: http.StatusOK,
+			}
+
+			return resp, nil
+		})
+		hc.Transport = mock
 
 		input := &RevokeTokensInput{
 			RefreshToken: "dummy-refresh-token",
@@ -107,14 +114,12 @@ func TestClient_RevokeTokens(t *testing.T) {
 	})
 
 	t.Run("both tokens are specified, returns error", func(t *testing.T) {
-		ts := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+		mock := dummyRoundTripper(func(_ *http.Request) (*http.Response, error) {
 			t.Fatal("client must return an error before this api is called")
-		}))
-		defer ts.Close()
 
-		// override api endpoint
-		baseURL, _ := url.Parse(ts.URL)
-		c.baseURL = baseURL
+			return nil, errors.New("invalid error")
+		})
+		hc.Transport = mock
 
 		input := &RevokeTokensInput{
 			AccessToken:  "dummy-access-token",
@@ -126,14 +131,12 @@ func TestClient_RevokeTokens(t *testing.T) {
 	})
 
 	t.Run("both tokens are empty, returns error", func(t *testing.T) {
-		ts := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+		mock := dummyRoundTripper(func(_ *http.Request) (*http.Response, error) {
 			t.Fatal("client must return an error before this api is called")
-		}))
-		defer ts.Close()
 
-		// override api endpoint
-		baseURL, _ := url.Parse(ts.URL)
-		c.baseURL = baseURL
+			return nil, errors.New("invalid error")
+		})
+		hc.Transport = mock
 
 		input := &RevokeTokensInput{
 			AccessToken:  "",
@@ -145,19 +148,19 @@ func TestClient_RevokeTokens(t *testing.T) {
 	})
 
 	t.Run("if the api returns BadRequest, returns error", func(t *testing.T) {
-		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			body := ErrorResponse{
-				Error: "invalid_request",
+		mock := dummyRoundTripper(func(_ *http.Request) (*http.Response, error) {
+			body := `{"error":"invalid_request"}`
+
+			resp := &http.Response{
+				Header:     make(http.Header),
+				Body:       io.NopCloser(strings.NewReader(body)),
+				StatusCode: http.StatusBadRequest,
 			}
+			resp.Header.Add("content-type", "application/json")
 
-			w.WriteHeader(http.StatusBadRequest)
-			_ = json.NewEncoder(w).Encode(body)
-		}))
-		defer ts.Close()
-
-		// override api endpoint
-		baseURL, _ := url.Parse(ts.URL)
-		c.baseURL = baseURL
+			return resp, nil
+		})
+		hc.Transport = mock
 
 		input := &RevokeTokensInput{
 			AccessToken: "dummy-refresh-token",
