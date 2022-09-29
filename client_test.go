@@ -129,3 +129,11 @@ func validateClientSecret(t *testing.T, c *Client, clientSecret string) {
 		t.Errorf("invalid sub: want %s, got %s", c.clientID, claim.Subject)
 	}
 }
+
+var _ http.RoundTripper = (*dummyRoundTripper)(nil)
+
+type dummyRoundTripper func(req *http.Request) (*http.Response, error)
+
+func (r dummyRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	return r(req)
+}
