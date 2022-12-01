@@ -86,5 +86,20 @@ func (c *Client) validResponse(res *http.Response) error {
 		return fmt.Errorf("siwarest: status_code = %d, failed to parse error response, %s", res.StatusCode, string(buf))
 	}
 
-	return fmt.Errorf("siwarest: status_code = %d, error code = %s", res.StatusCode, ret.Error)
+	switch ret.Error {
+	case "invalid_request":
+		return ErrInvalidRequest
+	case "invalid_client":
+		return ErrInvalidClient
+	case "invalid_grant":
+		return ErrInvalidGrant
+	case "unauthorized_client":
+		return ErrUnauthorizedClient
+	case "unsupported_grant_type":
+		return ErrUnsupportedGrantType
+	case "invalid_scope":
+		return ErrInvalidScope
+	}
+
+	return fmt.Errorf("siwarest: status_code = %d, unknown error code = %s", res.StatusCode, ret.Error)
 }

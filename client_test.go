@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -50,27 +51,79 @@ func TestClient_validResponse(t *testing.T) {
 		}
 	})
 
-	var tests = []struct {
+	// bad requests
+	var badRequestTests = []struct {
+		name string
+		body string
+		want error
+	}{
+		{
+			name: "invalid_request",
+			body: `{"error":"invalid_request"}`,
+			want: ErrInvalidRequest,
+		},
+		{
+			name: "invalid_client",
+			body: `{"error":"invalid_client"}`,
+			want: ErrInvalidClient,
+		},
+		{
+			name: "invalid_grant",
+			body: `{"error":"invalid_grant"}`,
+			want: ErrInvalidGrant,
+		},
+		{
+			name: "unauthorized_client",
+			body: `{"error":"unauthorized_client"}`,
+			want: ErrUnauthorizedClient,
+		},
+		{
+			name: "unsupported_grant_type",
+			body: `{"error":"unsupported_grant_type"}`,
+			want: ErrUnsupportedGrantType,
+		},
+		{
+			name: "invalid_scope",
+			body: `{"error":"invalid_scope"}`,
+			want: ErrInvalidScope,
+		},
+	}
+
+	for _, tc := range badRequestTests {
+		t.Run("BadRequest/"+tc.name, func(t *testing.T) {
+			resp := &http.Response{
+				StatusCode: http.StatusBadRequest,
+				Body:       io.NopCloser(strings.NewReader(tc.body)),
+			}
+
+			if err := c.validResponse(resp); !errors.Is(err, tc.want) {
+				t.Errorf("unexpected error: want %v, got %v", tc.want, err)
+			}
+		})
+	}
+
+	// illegal cases
+	var illegalTests = []struct {
 		name    string
 		code    int
 		body    string
 		wantKey string
 	}{
 		{
-			name:    "bad request",
+			name:    "bad request, unknown error code",
 			code:    http.StatusBadRequest,
-			body:    `{"error":"invalid_request"}`,
-			wantKey: "error code = invalid_request",
+			body:    `{"error":"unknown_error"}`,
+			wantKey: "status_code = 400, unknown error code = unknown_error",
 		},
 		{
 			name:    "unknown error",
 			code:    http.StatusInternalServerError,
 			body:    `unknown error`,
-			wantKey: "failed to parse error response, unknown error",
+			wantKey: "status_code = 500, failed to parse error response, unknown error",
 		},
 	}
 
-	for _, tc := range tests {
+	for _, tc := range illegalTests {
 		t.Run(tc.name, func(t *testing.T) {
 			resp := &http.Response{
 				StatusCode: tc.code,
