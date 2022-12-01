@@ -6,45 +6,63 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
 // GenerateAndValidateTokensInput is a parameter to call Generate and validate tokens API.
-type GenerateAndValidateTokensInput struct {
-	// AuthorizationCode is an authorization code received in an authorization response sent to your app.
-	AuthorizationCode string
-	// RefreshToken is a refresh token received from the validation server during an authorization request.
-	RefreshToken string
+type GenerateAndValidateTokenInput interface {
+	apply(*url.Values) error
+}
+
+type tokensInputWithAuthorizationCode struct {
+	code string
+}
+
+func (g *tokensInputWithAuthorizationCode) apply(v *url.Values) error {
+	if g.code == "" {
+		return errors.New("siwarest: authorization_code is empty")
+	}
+
+	v.Add("grant_type", "authorization_code")
+	v.Add("code", g.code)
+
+	return nil
+}
+
+// GenerateAndValidateTokensWithAuthorizationCode is an authorization code received in an authorization response sent to your app.
+func GenerateAndValidateTokensWithAuthorizationCode(code string) GenerateAndValidateTokenInput {
+	return &tokensInputWithAuthorizationCode{
+		code: code,
+	}
+}
+
+type tokensInputWithRefreshToken struct {
+	refreshToken string
+}
+
+func (g *tokensInputWithRefreshToken) apply(v *url.Values) error {
+	if g.refreshToken == "" {
+		return errors.New("siwarest: refresh_token is empty")
+	}
+
+	v.Add("grant_type", "refresh_token")
+	v.Add("refresh_token", g.refreshToken)
+
+	return nil
+}
+
+// GenerateAndValidateTokensWithRefreshToken is a refresh token received from the validation server during an authorization request.
+func GenerateAndValidateTokensWithRefreshToken(refreshToken string) GenerateAndValidateTokenInput {
+	return &tokensInputWithRefreshToken{
+		refreshToken: refreshToken,
+	}
 }
 
 // GenerateAndValidateTokens validates an authorization grant code delivered to your app to obtain tokens, or validate an existing refresh token.
 //
-// GenerateAndValidateTokensInput requires either an authorization code or a refresh token. If both are specified or both are empty, returns error.
-//
 // Please see also https://developer.apple.com/documentation/sign_in_with_apple/generate_and_validate_tokens
-func (c *Client) GenerateAndValidateTokens(ctx context.Context, input *GenerateAndValidateTokensInput) (*TokenResponse, error) {
-	var grantKey, grant, grantType string
-
-	if input.AuthorizationCode == "" && input.RefreshToken == "" {
-		return nil, errors.New("siwarest: authorization code and refresh token are empty")
-	}
-
-	if input.AuthorizationCode != "" {
-		grantKey = "code"
-		grant = input.AuthorizationCode
-		grantType = "authorization_code"
-	}
-
-	if input.RefreshToken != "" {
-		if input.AuthorizationCode != "" {
-			return nil, errors.New("siwarest: both authorization code and refresh token are specified")
-		}
-
-		grantKey = "refresh_token"
-		grant = input.RefreshToken
-		grantType = "refresh_token"
-	}
-
+func (c *Client) GenerateAndValidateTokens(ctx context.Context, input GenerateAndValidateTokenInput) (*TokenResponse, error) {
 	u := *c.baseURL
 	u.Path = "/auth/token"
 
@@ -52,8 +70,9 @@ func (c *Client) GenerateAndValidateTokens(ctx context.Context, input *GenerateA
 	if err != nil {
 		return nil, err
 	}
-	body.Add("grant_type", grantType)
-	body.Add(grantKey, grant)
+	if err := input.apply(body); err != nil {
+		return nil, err
+	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u.String(), strings.NewReader(body.Encode()))
 	if err != nil {

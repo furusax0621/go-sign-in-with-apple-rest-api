@@ -61,10 +61,7 @@ func TestClient_RevokeTokens(t *testing.T) {
 		})
 		hc.Transport = mock
 
-		input := &RevokeTokensInput{
-			AccessToken: "dummy-access-token",
-		}
-		if err := c.RevokeTokens(context.TODO(), input); err != nil {
+		if err := c.RevokeTokens(context.TODO(), RevokeTokensInputWithAccessToken("dummy-access-token")); err != nil {
 			t.Fatal(err)
 		}
 	})
@@ -105,15 +102,12 @@ func TestClient_RevokeTokens(t *testing.T) {
 		})
 		hc.Transport = mock
 
-		input := &RevokeTokensInput{
-			RefreshToken: "dummy-refresh-token",
-		}
-		if err := c.RevokeTokens(context.TODO(), input); err != nil {
+		if err := c.RevokeTokens(context.TODO(), RevokeTokensInputWithRefreshToken("dummy-refresh-token")); err != nil {
 			t.Fatal(err)
 		}
 	})
 
-	t.Run("both tokens are specified, returns error", func(t *testing.T) {
+	t.Run("if access_token is empty, returns error", func(t *testing.T) {
 		mock := dummyRoundTripper(func(_ *http.Request) (*http.Response, error) {
 			t.Fatal("client must return an error before this api is called")
 
@@ -121,16 +115,12 @@ func TestClient_RevokeTokens(t *testing.T) {
 		})
 		hc.Transport = mock
 
-		input := &RevokeTokensInput{
-			AccessToken:  "dummy-access-token",
-			RefreshToken: "dummy-refresh-token",
-		}
-		if err := c.RevokeTokens(context.TODO(), input); err == nil {
+		if err := c.RevokeTokens(context.TODO(), RevokeTokensInputWithAccessToken("")); err == nil {
 			t.Fatal("want error, but not")
 		}
 	})
 
-	t.Run("both tokens are empty, returns error", func(t *testing.T) {
+	t.Run("if refresh_token is empty, returns error", func(t *testing.T) {
 		mock := dummyRoundTripper(func(_ *http.Request) (*http.Response, error) {
 			t.Fatal("client must return an error before this api is called")
 
@@ -138,11 +128,7 @@ func TestClient_RevokeTokens(t *testing.T) {
 		})
 		hc.Transport = mock
 
-		input := &RevokeTokensInput{
-			AccessToken:  "",
-			RefreshToken: "",
-		}
-		if err := c.RevokeTokens(context.TODO(), input); err == nil {
+		if err := c.RevokeTokens(context.TODO(), RevokeTokensInputWithRefreshToken("")); err == nil {
 			t.Fatal("want error, but not")
 		}
 	})
@@ -162,12 +148,8 @@ func TestClient_RevokeTokens(t *testing.T) {
 		})
 		hc.Transport = mock
 
-		input := &RevokeTokensInput{
-			AccessToken: "dummy-refresh-token",
-		}
-		if err := c.RevokeTokens(context.TODO(), input); err == nil {
+		if err := c.RevokeTokens(context.TODO(), RevokeTokensInputWithAccessToken("dummy-refresh-token")); err == nil {
 			t.Fatal("want error, but not")
 		}
 	})
-
 }

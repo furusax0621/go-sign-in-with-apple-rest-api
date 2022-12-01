@@ -75,10 +75,7 @@ func TestClient_GenerateAndValidateTokens(t *testing.T) {
 		})
 		hc.Transport = mock
 
-		input := &GenerateAndValidateTokensInput{
-			AuthorizationCode: "dummy-auth-code",
-		}
-		gotToken, err := c.GenerateAndValidateTokens(context.TODO(), input)
+		gotToken, err := c.GenerateAndValidateTokens(context.TODO(), GenerateAndValidateTokensWithAuthorizationCode("dummy-auth-code"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -133,10 +130,7 @@ func TestClient_GenerateAndValidateTokens(t *testing.T) {
 		})
 		hc.Transport = mock
 
-		input := &GenerateAndValidateTokensInput{
-			RefreshToken: "old-refresh-token",
-		}
-		gotToken, err := c.GenerateAndValidateTokens(context.TODO(), input)
+		gotToken, err := c.GenerateAndValidateTokens(context.TODO(), GenerateAndValidateTokensWithRefreshToken("old-refresh-token"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -145,7 +139,7 @@ func TestClient_GenerateAndValidateTokens(t *testing.T) {
 		}
 	})
 
-	t.Run("both authorization code and refresh token are specified, returns error", func(t *testing.T) {
+	t.Run("if authorization_code and is empty, returns error", func(t *testing.T) {
 		mock := dummyRoundTripper(func(_ *http.Request) (*http.Response, error) {
 			t.Fatal("client must return an error before this api is called")
 
@@ -153,16 +147,12 @@ func TestClient_GenerateAndValidateTokens(t *testing.T) {
 		})
 		hc.Transport = mock
 
-		input := &GenerateAndValidateTokensInput{
-			AuthorizationCode: "code",
-			RefreshToken:      "token",
-		}
-		if _, err := c.GenerateAndValidateTokens(context.TODO(), input); err == nil {
+		if _, err := c.GenerateAndValidateTokens(context.TODO(), GenerateAndValidateTokensWithAuthorizationCode("")); err == nil {
 			t.Fatal("want error, but not")
 		}
 	})
 
-	t.Run("authorization code and refresh token are empty, returns error", func(t *testing.T) {
+	t.Run("if refresh_token is empty, returns error", func(t *testing.T) {
 		mock := dummyRoundTripper(func(_ *http.Request) (*http.Response, error) {
 			t.Fatal("client must return an error before this api is called")
 
@@ -170,11 +160,7 @@ func TestClient_GenerateAndValidateTokens(t *testing.T) {
 		})
 		hc.Transport = mock
 
-		input := &GenerateAndValidateTokensInput{
-			AuthorizationCode: "",
-			RefreshToken:      "",
-		}
-		if _, err := c.GenerateAndValidateTokens(context.TODO(), input); err == nil {
+		if _, err := c.GenerateAndValidateTokens(context.TODO(), GenerateAndValidateTokensWithRefreshToken("")); err == nil {
 			t.Fatal("want error, but not")
 		}
 	})
@@ -194,10 +180,7 @@ func TestClient_GenerateAndValidateTokens(t *testing.T) {
 		})
 		hc.Transport = mock
 
-		input := &GenerateAndValidateTokensInput{
-			AuthorizationCode: "dummy-auth-code",
-		}
-		if _, err := c.GenerateAndValidateTokens(context.TODO(), input); err == nil {
+		if _, err := c.GenerateAndValidateTokens(context.TODO(), GenerateAndValidateTokensWithAuthorizationCode("dummy-auth-code")); err == nil {
 			t.Fatal("want error, but not")
 		}
 	})
