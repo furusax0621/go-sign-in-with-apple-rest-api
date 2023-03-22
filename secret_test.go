@@ -15,8 +15,9 @@ func Test_secret_get(t *testing.T) {
 		privateKey: privateKey,
 	}
 
+	now := time.Now().Truncate(time.Second)
 	nowFunc = func() time.Time {
-		return time.Date(2022, 6, 30, 0, 0, 0, 0, time.UTC) // in this test, now is 2022-06-30T00:00:00Z
+		return now
 	}
 	defer func() { nowFunc = time.Now }()
 
@@ -60,17 +61,17 @@ func Test_secret_get(t *testing.T) {
 		if gotClaims.Subject != "service-id" {
 			t.Errorf("want %s, got %s", "service-id", gotClaims.Subject)
 		}
-		if issuedAt := gotClaims.IssuedAt.Time; !issuedAt.Equal(time.Date(2022, 6, 30, 0, 0, 0, 0, time.UTC)) {
-			t.Errorf("want %v, got %v", time.Date(2022, 6, 30, 0, 0, 0, 0, time.UTC), issuedAt)
+		if issuedAt := gotClaims.IssuedAt.Time; !issuedAt.Equal(now) {
+			t.Errorf("want %v, got %v", now, issuedAt)
 		}
-		if expiresAt := gotClaims.ExpiresAt.Time; !expiresAt.Equal(time.Date(2022, 6, 30, 0, 0, 0, 0, time.UTC).Add(expiresDuration)) {
-			t.Errorf("want %v, got %v", time.Date(2022, 6, 30, 0, 0, 0, 0, time.UTC).Add(expiresDuration), expiresAt)
+		if expiresAt := gotClaims.ExpiresAt.Time; !expiresAt.Equal(now.Add(expiresDuration)) {
+			t.Errorf("want %v, got %v", now.Add(expiresDuration), expiresAt)
 		}
 	})
 
 	t.Run("if secret has a jwt and it is valid, return existing jwt", func(t *testing.T) {
 		wantToken := "existing-jwt-string"
-		expiresAt := time.Date(2022, 6, 30, 1, 0, 1, 0, time.UTC)
+		expiresAt := now.Add(time.Hour)
 
 		secret.tokenString = wantToken
 		secret.expiresAt = expiresAt
@@ -88,7 +89,7 @@ func Test_secret_get(t *testing.T) {
 	})
 
 	t.Run("if jwt has expired, refresh jwt", func(t *testing.T) {
-		oldExpiresAt := time.Date(2022, 6, 30, 0, 0, 0, 0, time.UTC)
+		oldExpiresAt := now
 		secret.tokenString = "existing-jwt-string"
 		secret.expiresAt = oldExpiresAt
 		got, err := secret.get()
